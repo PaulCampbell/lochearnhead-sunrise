@@ -336,7 +336,7 @@ class IotManagerClient:
             # Use traditional JSON
             return self._call_discovered('create_content', data=content_obj)
 
-    def upload_image(self, image_data, filename=None, device_id=None, description=None, **extra_fields):
+    def upload_image(self, image_data, filename=None, device_id=None, description=None, test_post=False, **extra_fields):
         """Convenience method to upload a JPEG image.
         
         Args:
@@ -365,6 +365,8 @@ class IotManagerClient:
             fields['deviceId'] = device_id
         if description:
             fields['description'] = description
+        if test_post:
+            fields['testPost'] = 'true'
         fields.update(extra_fields)
         
         return self.create_content(files=files, **fields)

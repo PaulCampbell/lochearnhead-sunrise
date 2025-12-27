@@ -8,7 +8,7 @@ If you know what the fediverse is, you should follow that thing :)
 
 It uses https://github.com/PaulCampbell/iot_manager as the backend
 
-That thing is configured something like this:
+IOT Manager is configured something like this:
 
 ```javascript
 import createIotManager from 'iot_manager'
@@ -94,3 +94,7 @@ Debugging: Connect to the device to check the logs / run code etc
 ```
 mpremote connect "/dev/tty.usbserial-10" repl
 ```
+
+## Enclosure
+
+I never had anything sensible lying around to put the thing in, so I made a little [enclosure]|(/3d-models) with OpenScad and printed it. It's pretty basic, but hopefully it will do the job!.
