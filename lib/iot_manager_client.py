@@ -1,16 +1,13 @@
 """
     IoT Manager MicroPython Client.
 """
-
-try:
-    import ujson as json
-except ImportError:  # CPython fallback for smoke tests
-    import json
-
-try:
-    import ubinascii as binascii
-except ImportError:
-    import binascii
+import gc
+import uos
+import urequests as requests
+import ujson as json
+import ubinascii as binascii
+import deflate
+import tarfile
 
 
 class IotManagerError(Exception):
@@ -206,11 +203,7 @@ class IotManagerClient:
 
     def _request_raw(self, method, url, params=None, json_body=None, multipart_data=None):
         """Return parsed JSON dict/list (or raise)."""
-        try:
-            import urequests as requests
-        except ImportError:
-            import requests  # type: ignore
-
+        gc.collect()
         if params and method.upper() == 'GET':
             qs = _encode_qs(params)
             if qs:
@@ -379,3 +372,104 @@ class IotManagerClient:
             raise ServerError('Authenticate did not return authorization')
         self.authorization = result['authorization']
         return self.authorization
+
+
+class OTAUpdater:
+    """Over-the-air updater using IoT Manager."""
+    def __init__(self, client: IotManagerClient):
+        self.client = client
+
+    def recursive_delete(self, path: str):
+        """
+        Delete a directory recursively, removing files from all sub-directories before
+        finally removing empty directory. Works for both files and directories.
+
+        No limit to the depth of recursion, will fail on too deep dir structures.
+        """
+        # prevent deleting the whole filesystem and skip non-existent files
+        if not path or not uos.stat(path):
+            return
+
+        path = path[:-1] if path.endswith('/') else path
+
+        try:
+            children = uos.listdir(path)
+            # no exception thrown, this is a directory
+            for child in children:
+                self.recursive_delete(path + '/' + child)
+        except OSError:
+            uos.remove(path)
+            return
+        uos.rmdir(path)
+
+    def get_current_version(self):
+        # read from version.dat 
+        try:
+            with open('version.dat', 'r') as f:
+                version = f.read().strip()
+                return version
+        except Exception:
+            return None
+
+    def check_for_update(self):
+        data = self.client.get_latest_version()
+        latest_version = data.get('latestVersion')
+        download_url = data.get('downloadUrl')
+        current_version = self.get_current_version()
+        
+        if latest_version and download_url:
+            if latest_version != current_version:
+                return latest_version, download_url
+        return None, None
+
+    def check_and_perform_update(self):
+        tmp_filename = 'ota_version.tmp'
+        gc.collect()
+        latest_version, download_url = self.check_for_update()
+        if latest_version and download_url:
+            print(f"Updating from version {self.current_version} to {latest_version}")
+            response = requests.get(download_url)
+            with open(tmp_filename, 'wb') as f:
+                while True:
+                    chunk = response.raw.read(512)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+            
+            gc.collect()
+            try:
+                uos.stat(tmp_filename)
+            except OSError:
+                print('No new firmware file found in flash.')
+                return
+            with open(tmp_filename, 'rb') as f1:
+                f2 = deflate.DeflateIO(f1, deflate.GZIP)
+                f3 = tarfile.TarFile(fileobj=f2)
+                for _file in f3:
+                    file_name = _file.name
+                    if file_name.endswith('/'):  # is a directory
+                        try:
+                            print(f'creating directory {file_name} ... ')
+                            uos.mkdir(file_name[:-1])  # without trailing slash or fail with errno 2
+                            print('ok')
+                        except OSError as e:
+                            if e.errno == 17:
+                                print('already exists')
+                            else:
+                                raise e
+                        continue
+                    file_obj = f3.extractfile(_file)
+                    with open(file_name, 'wb') as f_out:
+                        written_bytes = 0
+                        while True:
+                            buf = file_obj.read(512)
+                            if not buf:
+                                break
+                            written_bytes += f_out.write(buf)
+                        print(f'file {file_name} ({written_bytes} B) written to flash')
+
+            uos.remove(tmp_filename)
+            print("Update applied successfully.")
+            return True
+        print("No update available.")
+        return False
