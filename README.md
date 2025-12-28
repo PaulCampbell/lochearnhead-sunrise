@@ -55,8 +55,16 @@ iotManager.setEndpointListener({ pathRoot: '/iot-manager' })
       url: tarball_url,
     };
   })
+  .on(GetConfig, async (ctx, data) => {
+    const nextWakeupDateTime = await getTomorrowSunriseTime()
+    const nextWakeupTimeMs = nextWakeupDateTime.getTime() - new Date().getTime()
+    return {
+      nextWakeupDateTime,
+      nextWakeupTimeMs,
+    };
+  })
   .on(CreateContent, async (ctx, data) => {
-    // Nice - picture received
+    // Nice - picture received...
     const picUrl = await savePicture(data._formData)
     await postToFediverse({
         imageUrl: picUrl
