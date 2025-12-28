@@ -446,8 +446,8 @@ class OTAUpdater:
         current_version = self.get_current_version()
         print("Current version:", current_version)
         if latest_version and download_url:
-            #if latest_version != current_version:
-            return latest_version, download_url
+            if latest_version != current_version:
+                return latest_version, download_url
         return None, None
 
     def check_and_perform_update(self):
