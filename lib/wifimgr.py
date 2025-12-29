@@ -1,6 +1,7 @@
 import network
 import socket
 import ure
+from machine import Timer
 import time
 import errno
 from lib.microDNSSrv import MicroDNSSrv
@@ -9,6 +10,10 @@ NETWORK_PROFILES = 'wifi.dat'
 
 wlan_ap = network.WLAN(network.AP_IF)
 wlan_sta = network.WLAN(network.STA_IF)
+
+
+class CaptiveNetworkTimeoutException(Exception):
+    pass
 
 class WifiManager:
 
@@ -88,13 +93,24 @@ class WifiManager:
 
         mdns = MicroDNSSrv.Create({ '*' : '192.168.4.1' })
 
+        print("Running captive portal... for 5 minutes")
         print('Connect to WiFi ssid ' + self.ssid + ', default password: ' + self.password)
         print('and open browser window (captive portal should redirect)')
         print('Listening on:', addr)
 
+        def times_up(t):
+            print("Captive portal time is up.")
+            mdns.Stop()
+            self.stop()
+            wlan_ap.active(False)
+            raise CaptiveNetworkTimeoutException("Captive portal time is up")
+        
+        timer_length = 5 * 60 * 1000  # 5 minutes
+        timer = Timer(-1, period=timer_length, mode=Timer.ONE_SHOT, callback=times_up)
         while True:
             if wlan_sta.isconnected():
                 # Allow confirmation page to display before shutting down network
+                timer.deinit()
                 time.sleep(3)
                 mdns.Stop()
                 self.stop()

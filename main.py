@@ -20,8 +20,7 @@ def main():
         program.main()
     except Exception as e:
         print("Unhandled exception in main:", e)
-        # probably a WiFi issue; sleep for 5 minutes and try again
-        print("Entering deep sleep for 5 minutes")
-        machine.deepsleep(5 * 60 * 1000)
+        # probably a WiFi issue; restart
+        machine.reset()
 
 main()

@@ -113,6 +113,9 @@ class TimeLapseCam:
                     self.take_photo(test_post=True)
 
                 counter += 1
+                if counter >= 20:
+                    print("Exiting test mode after 20 iterations.")
+                    machine.reset()
                 time.sleep(10)
         else:
             if wake_reason == machine.DEEPSLEEP_RESET:
