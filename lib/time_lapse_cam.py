@@ -103,20 +103,20 @@ class TimeLapseCam:
 
         if config is not None and config.get('testMode', False):
             print("Running in test mode...")
-            counter = 0
-            while True:
-                print("Test mode iteration:", counter)
-                signal_strength = self.wifi_manager.get_signal_strength()
-                print("Signal strength:", signal_strength)
-                self.client.create_device_status(signal_strength)
-                if counter % 10 == 0:
-                    self.take_photo(test_post=True)
-
-                counter += 1
-                if counter >= 20:
-                    print("Exiting test mode after 20 iterations.")
-                    machine.reset()
-                time.sleep(10)
+            signal_strength = self.wifi_manager.get_signal_strength()
+            print("Signal strength:", signal_strength)
+            self.client.create_device_status(signal_strength)
+            self.take_photo(test_post=True)
+            try:
+                print("Checking for firmware updates...")
+                self.client.check_and_update_firmware()
+            except Exception as e:
+                print("Firmware update check failed:", e)
+            
+            # deepsleep for 30 seconds
+            print("Entering deep sleep for 30 seconds (test mode).")
+            machine.deepsleep(30 * 1000)
+            
         else:
             if wake_reason == machine.DEEPSLEEP_RESET:
                 self.take_photo()
@@ -126,7 +126,11 @@ class TimeLapseCam:
             # send the server a little status update
             signal_strength = self.wifi_manager.get_signal_strength()
             print("Signal strength:", signal_strength)
-            self.client.create_device_status(signal_strength)
+            device_status = {
+                "signal_strength": signal_strength,
+                "firmware_version": self.client.get_firmware_version()
+            }
+            self.client.create_device_status(device_status)
 
             # check for firmware updates before going to sleep 
             # until next sunrise

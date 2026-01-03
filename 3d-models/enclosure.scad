@@ -1,5 +1,7 @@
 
 
+
+
 // main box
 difference() {
 cube([114,35,34]);
@@ -8,16 +10,25 @@ cube([110,37,30]);
 }
 
 //corners
-cube([4,35,4]);
+module corner_pillar() {
+    difference() {
+        cube([4,35,4]);
+        translate([2,36,2])
+        rotate([90,0,0])
+            cylinder(3,0.5,0.5, $fn=80);
+    }
+}
+corner_pillar();
 
 translate([0,0,30])
-cube([4,35,4]);
+    corner_pillar();
 
 translate([110,0,30])
-cube([4,35,4]);
+    corner_pillar();
 
 translate([110,0,0])
-cube([4,35,4]);
+    corner_pillar();
+
 
 
 // battery mounts

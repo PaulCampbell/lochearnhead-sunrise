@@ -291,6 +291,14 @@ class IotManagerClient:
 
     def get_latest_version(self, **params):
         return self._call_discovered('get_latest_version', params=params)
+        
+    def get_firmware_version(self):
+        try:
+            with open('version.dat', 'r') as f:
+                version = f.read().strip()
+                return version
+        except Exception:
+            return None
 
     def create_device_status(self, status_obj):
         return self._call_discovered('create_device_status', data=status_obj)
@@ -430,20 +438,12 @@ class OTAUpdater:
                     except Exception:
                         raise
 
-    def get_current_version(self):
-        try:
-            with open('version.dat', 'r') as f:
-                version = f.read().strip()
-                return version
-        except Exception:
-            return None
-
     def check_for_update(self):
         data = self.client.get_latest_version()
         latest_version = data.get('version')
         download_url = data.get('url')
         print("Latest version:", latest_version, "Download URL:", download_url)
-        current_version = self.get_current_version()
+        current_version = self.client.get_firmware_version()
         print("Current version:", current_version)
         if latest_version and download_url:
             if latest_version != current_version:
