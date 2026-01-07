@@ -33,8 +33,6 @@ class TimeLapseCam:
         
         return wlan
         
-
-
     def take_photo(self, test_post=False):
         try:
             print("Taking photo...")
@@ -105,7 +103,11 @@ class TimeLapseCam:
             print("Running in test mode...")
             signal_strength = self.wifi_manager.get_signal_strength()
             print("Signal strength:", signal_strength)
-            self.client.create_device_status(signal_strength)
+            device_status = {
+                "signal_strength": signal_strength,
+                "firmware_version": self.client.get_firmware_version()
+            }
+            self.client.create_device_status(device_status)
             self.take_photo(test_post=True)
             try:
                 print("Checking for firmware updates...")
@@ -116,7 +118,7 @@ class TimeLapseCam:
             # deepsleep for 30 seconds
             print("Entering deep sleep for 30 seconds (test mode).")
             machine.deepsleep(30 * 1000)
-            
+
         else:
             if wake_reason == machine.DEEPSLEEP_RESET:
                 self.take_photo()
