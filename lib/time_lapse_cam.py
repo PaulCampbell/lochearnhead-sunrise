@@ -36,12 +36,14 @@ class TimeLapseCam:
     def take_photo(self, test_post=False):
         try:
             print("Taking photo...")
-            camera.init(0, format=camera.JPEG, fb_location=camera.PSRAM)
+            while not camera.init(0, format=camera.JPEG, fb_location=camera.PSRAM):
+                time.sleep(0.1)
+
             camera.framesize(camera.FRAME_SXGA)
             camera.whitebalance(camera.WB_SUNNY)
             frame = camera.capture()
             camera.deinit()
-            print("Photo taken, size:", len(frame))
+            
             response = self.client.upload_image(
                 image_data=frame,
                 test_post=test_post,
