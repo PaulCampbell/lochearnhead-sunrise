@@ -42,7 +42,6 @@ class TimeLapseCam:
             camera.framesize(camera.FRAME_SXGA)
             camera.whitebalance(camera.WB_SUNNY)
             frame = camera.capture()
-            camera.deinit()
             
             response = self.client.upload_image(
                 image_data=frame,
@@ -53,6 +52,8 @@ class TimeLapseCam:
         except Exception as e:
             print("create_content failed:", e)
             return e
+        finally:
+            camera.deinit()
 
     def fetch_config(self):
         try:
@@ -105,22 +106,18 @@ class TimeLapseCam:
 
         image_send_successful = None 
         in_test_mode = config is not None and config.get('testMode', False)
-        if wake_reason == machine.DEEPSLEEP_RESET:
-            image_send_successful = self.take_photo(test_post=in_test_mode)   
-        else:
-            print("Not taking photo on normal reset wakeup.")
-         
+        image_send_successful = self.take_photo(test_post=in_test_mode)   
+
         ms_til_next_wakeup = 30 * 1000
         if in_test_mode:
             ms_til_next_wakeup = 30 * 1000
         else:
             ms_til_next_wakeup = self.get_wakeup_time(config)
-
-        try:
-            print("Checking for firmware updates...")
-            self.client.check_and_update_firmware()
-        except Exception as e:
-            print("Firmware update check failed:", e)
+            try:
+                print("Checking for firmware updates...")
+                self.client.check_and_update_firmware()
+            except Exception as e:
+                print("Firmware update check failed:", e)
 
         signal_strength = self.wifi_manager.get_signal_strength()
         device_status = {
