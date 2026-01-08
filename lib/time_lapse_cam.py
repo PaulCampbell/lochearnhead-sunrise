@@ -36,8 +36,8 @@ class TimeLapseCam:
     def take_photo(self, test_post=False):
         try:
             print("Taking photo...")
-            while not camera.init(0, format=camera.JPEG, fb_location=camera.PSRAM):
-                time.sleep(0.1)
+            camera.init(0, format=camera.JPEG, fb_location=camera.PSRAM)
+            time.sleep(1.2) 
 
             camera.framesize(camera.FRAME_SXGA)
             camera.whitebalance(camera.WB_SUNNY)
@@ -126,6 +126,7 @@ class TimeLapseCam:
             "image_send_successful": image_send_successful,
             "wake_reason": wake_reason,
             "running_in_test_mode": in_test_mode,
+            "sleep_for": ms_til_next_wakeup,
         }
         self.client.create_device_status(device_status)
         print("Entering deep sleep for: ", ms_til_next_wakeup)
