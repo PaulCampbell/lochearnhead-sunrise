@@ -50,7 +50,7 @@ class TimeLapseCam:
             return True
         except Exception as e:
             print("create_content failed:", e)
-            return False
+            return e
 
     def fetch_config(self):
         try:
