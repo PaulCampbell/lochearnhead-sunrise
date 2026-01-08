@@ -13,7 +13,7 @@ class TimeLapseCam:
         self.device_id = device_id
         self.device_password = device_password
         self.client = IotManagerClient(base_url=self.iot_manager_base_url)
-        self.wifi_manager = WifiManager()
+        self.wifi_manager = WifiManager(ssid='sunrise-cam', password='', authmode=0)
         print("TimeLapseCam initialized with device ID:", self.device_id)
 
     def connect_wifi(self, enter_captive_portal_if_needed):
@@ -47,8 +47,10 @@ class TimeLapseCam:
                 test_post=test_post,
             )
             print("Image uploaded, response:", response)
+            return True
         except Exception as e:
             print("create_content failed:", e)
+            return False
 
     def fetch_config(self):
         try:
@@ -99,49 +101,33 @@ class TimeLapseCam:
         except Exception as e:
             print("Fetch config failed:", e)
 
-        if config is not None and config.get('testMode', False):
-            print("Running in test mode...")
-            signal_strength = self.wifi_manager.get_signal_strength()
-            print("Signal strength:", signal_strength)
-            device_status = {
-                "signal_strength": signal_strength,
-                "firmware_version": self.client.get_firmware_version()
-            }
-            self.client.create_device_status(device_status)
-            self.take_photo(test_post=True)
-            try:
-                print("Checking for firmware updates...")
-                self.client.check_and_update_firmware()
-            except Exception as e:
-                print("Firmware update check failed:", e)
-            
-            # deepsleep for 30 seconds
-            print("Entering deep sleep for 30 seconds (test mode).")
-            machine.deepsleep(30 * 1000)
-
+        image_send_successful = None 
+        in_test_mode = config is not None and config.get('testMode', False)
+        if wake_reason == machine.DEEPSLEEP_RESET:
+            image_send_successful = self.take_photo(test_post=in_test_mode)   
         else:
-            if wake_reason == machine.DEEPSLEEP_RESET:
-                self.take_photo()
-            else:
-                print("Not taking photo on normal reset wakeup.")
-
-            # send the server a little status update
-            signal_strength = self.wifi_manager.get_signal_strength()
-            print("Signal strength:", signal_strength)
-            device_status = {
-                "signal_strength": signal_strength,
-                "firmware_version": self.client.get_firmware_version()
-            }
-            self.client.create_device_status(device_status)
-
-            # check for firmware updates before going to sleep 
-            # until next sunrise
-            try:
-                print("Checking for firmware updates...")
-                self.client.check_and_update_firmware()
-            except Exception as e:
-                print("Firmware update check failed:", e)
-            
+            print("Not taking photo on normal reset wakeup.")
+         
+        ms_til_next_wakeup = 30 * 1000
+        if in_test_mode:
+            ms_til_next_wakeup = 30 * 1000
+        else:
             ms_til_next_wakeup = self.get_wakeup_time(config)
-            print("Entering deep sleep for: ", ms_til_next_wakeup)
-            machine.deepsleep(ms_til_next_wakeup)
+
+        try:
+            print("Checking for firmware updates...")
+            self.client.check_and_update_firmware()
+        except Exception as e:
+            print("Firmware update check failed:", e)
+
+        signal_strength = self.wifi_manager.get_signal_strength()
+        device_status = {
+            "signal_strength": signal_strength,
+            "firmware_version": self.client.get_firmware_version(),
+            "image_send_successful": image_send_successful,
+            "wake_reason": wake_reason,
+            "running_in_test_mode": in_test_mode,
+        }
+        self.client.create_device_status(device_status)
+        print("Entering deep sleep for: ", ms_til_next_wakeup)
+        machine.deepsleep(ms_til_next_wakeup)

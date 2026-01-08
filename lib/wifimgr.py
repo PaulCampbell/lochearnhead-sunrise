@@ -19,7 +19,7 @@ class CaptiveNetworkTimeoutException(Exception):
 class WifiManager:
 
     # authmodes: 0=open, 1=WEP, 2=WPA-PSK, 3=WPA2-PSK, 4=WPA/WPA2-PSK
-    def __init__(self, ssid='CritterCam', password='', authmode=0):
+    def __init__(self, ssid='esp32-setup', password='', authmode=0):
         self.ssid = ssid
         self.password = password
         self.authmode = authmode
