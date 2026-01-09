@@ -107,7 +107,7 @@ class WifiManager:
             raise CaptiveNetworkTimeoutException("Captive portal time is up")
         
         timer_length = 5 * 60 * 1000  # 5 minutes
-        timer = Timer(-1, period=timer_length, mode=Timer.ONE_SHOT, callback=times_up)
+        timer = Timer(0, period=timer_length, mode=Timer.ONE_SHOT, callback=times_up)
         while True:
             if wlan_sta.isconnected():
                 # Allow confirmation page to display before shutting down network

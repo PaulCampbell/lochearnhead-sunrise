@@ -2,7 +2,7 @@ from lib.iot_manager_client import IotManagerClient
 from lib.wifimgr import WifiManager
 import time
 import ntptime
-import camera
+from camera import Camera, GrabMode, PixelFormat, FrameSize
 import machine
 
 TEST_MODE = False
@@ -33,27 +33,32 @@ class TimeLapseCam:
         
         return wlan
         
-    def take_photo(self, weather_condition='overcast', test_post=False):
+    def take_photo(self, test_post=False):
         try:
             print("Taking photo...")
-            camera.init(0, format=camera.JPEG, fb_location=camera.PSRAM)
-            time.sleep(1.2) 
+            cam = Camera(pixel_format=PixelFormat.JPEG,
+                frame_size=FrameSize.UXGA,
+                jpeg_quality=90,
+            )
+            print('Camera initialized')
+            cam.set_awb_gain(True)
+            cam.set_agc_gain(True)
+            cam.set_exposure_ctrl(False)
+            cam.set_aec_value(10)
 
-            camera.contrast(1)
-            camera.saturation(-1)
+            time.sleep(4)
 
-            camera.framesize(camera.FRAME_QXGA)
-            if weather_condition == 'sunny':
-                camera.whitebalance(camera.WB_SUNNY)
-            elif weather_condition == 'overcast':
-                camera.whitebalance(camera.WB_CLOUDY)
-            else:
-                camera.whitebalance(camera.WB_NONE)
-
-            frame = camera.capture()
+            print("whitebal", cam.whitebal)
+            print("agc_gain", cam.gain_ctrl)
+            print("exposure_ctrl", cam.exposure_ctrl)
+            print("awb_gain", cam.awb_gain)
+            print("agc_gain", cam.agc_gain)
+            print("aec_value", cam.aec_value)
             
+            img = bytes(cam.capture())
+            print("Photo taken, size:", len(img), "bytes")
             response = self.client.upload_image(
-                image_data=frame,
+                image_data=img,
                 test_post=test_post,
             )
             print("Image uploaded, response:", response)
@@ -62,7 +67,7 @@ class TimeLapseCam:
             print("create_content failed:", e)
             return e
         finally:
-            camera.deinit()
+            cam.free_buffer()
 
     def fetch_config(self):
         try:
@@ -96,6 +101,8 @@ class TimeLapseCam:
         print("Wake reason:", wake_reason, "at time:", wakeup_time)
         timer_based_wakeup = (wake_reason == 4)
         allow_captive_portal = not timer_based_wakeup
+        self.take_photo(test_post=True)
+        return
         wlan = self.connect_wifi(enter_captive_portal_if_needed=allow_captive_portal)
         
         if wlan is None:
@@ -115,13 +122,12 @@ class TimeLapseCam:
             print("Fetch config failed:", e)
 
         image_send_successful = None 
-        in_test_mode = config is not None and config.get('testMode', False)
-        weather_condition =  config is not None and config.get('weatherCondition', 'overcast')
+        in_test_mode = True #config is not None and config.get('testMode', False)
 
         upload_test_image = in_test_mode or not timer_based_wakeup
-        image_send_successful = self.take_photo(weather_condition=weather_condition, test_post=upload_test_image)   
+        image_send_successful = self.take_photo(test_post=upload_test_image)   
 
-        ms_til_next_wakeup = 30 * 1000
+        ms_til_next_wakeup = 30 * 1000 # 30 * 1000
         if not in_test_mode:
             ms_til_next_wakeup = self.get_wakeup_time(config)
 
@@ -133,15 +139,14 @@ class TimeLapseCam:
             "wake_reason": wake_reason,
             "running_in_test_mode": in_test_mode,
             "sleep_for": ms_til_next_wakeup,
-            "weather_condition": weather_condition,
         }
         self.client.create_device_status(device_status)
 
-        try:
-            print("Checking for firmware updates...")
-            self.client.check_and_update_firmware()
-        except Exception as e:
-            print("Firmware update check failed:", e)
+        # try:
+        #     print("Checking for firmware updates...")
+        #     self.client.check_and_update_firmware()
+        # except Exception as e:
+        #     print("Firmware update check failed:", e)
 
         print("Entering deep sleep for: ", ms_til_next_wakeup)
         machine.deepsleep(ms_til_next_wakeup)

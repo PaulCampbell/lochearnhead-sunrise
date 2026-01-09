@@ -44,7 +44,7 @@ erase the flash and install the micropython firmware:
 ```
 esptool --baud 115200 --chip esp32 --port /dev/tty.usbserial-10 erase-flash 
 
-esptool.py --chip esp32 --port /dev/tty.usbserial-10 write_flash -z 0x1000  clients/micropython/micropython_v1.21.0_camera_no_ble.bin
+esptool.py --chip esp32 --port /dev/tty.usbserial-10 write_flash -z 0x1000  clients/micropython/firmware.bin
 ```
 
 Copy environment.example.py to environment.py and set the environment variables
