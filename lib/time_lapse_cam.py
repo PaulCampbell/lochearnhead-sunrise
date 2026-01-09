@@ -125,7 +125,7 @@ class TimeLapseCam:
         upload_test_image = in_test_mode or not timer_based_wakeup
         image_send_successful = self.take_photo(test_post=upload_test_image)   
 
-        ms_til_next_wakeup = 30 * 1000 # 30 * 1000
+        ms_til_next_wakeup = 30 * 1000
         if not in_test_mode:
             ms_til_next_wakeup = self.get_wakeup_time(config)
 

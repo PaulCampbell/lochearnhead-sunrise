@@ -20,6 +20,6 @@ def main():
     except Exception as e:
         print("Unhandled exception in main:", e)
         # probably a WiFi issue; restart
-        # machine.reset()
+        machine.reset()
 
 main()
