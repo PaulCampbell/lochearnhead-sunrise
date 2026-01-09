@@ -33,14 +33,20 @@ class TimeLapseCam:
         
         return wlan
         
-    def take_photo(self, test_post=False):
+    def take_photo(self, weather_condition='overcast', test_post=False):
         try:
             print("Taking photo...")
             camera.init(0, format=camera.JPEG, fb_location=camera.PSRAM)
             time.sleep(1.2) 
 
             camera.framesize(camera.FRAME_SXGA)
-            camera.whitebalance(camera.WB_SUNNY)
+            if weather_condition == 'sunny':
+                camera.whitebalance(camera.WB_SUNNY)
+            elif weather_condition == 'overcast':
+                camera.whitebalance(camera.WB_CLOUDY)
+            else:
+                camera.whitebalance(camera.WB_NONE)
+
             frame = camera.capture()
             
             response = self.client.upload_image(
@@ -106,7 +112,9 @@ class TimeLapseCam:
 
         image_send_successful = None 
         in_test_mode = config is not None and config.get('testMode', False)
-        image_send_successful = self.take_photo(test_post=in_test_mode)   
+        weather_condition =  config is not None and config.get('weatherCondition', 'overcast')
+        
+        image_send_successful = self.take_photo(weather_condition=weather_condition, test_post=in_test_mode)   
 
         ms_til_next_wakeup = 30 * 1000
         if in_test_mode:
