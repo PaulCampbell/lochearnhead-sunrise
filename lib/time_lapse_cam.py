@@ -39,7 +39,10 @@ class TimeLapseCam:
             camera.init(0, format=camera.JPEG, fb_location=camera.PSRAM)
             time.sleep(1.2) 
 
-            camera.framesize(camera.FRAME_SXGA)
+            camera.contrast(1)
+            camera.saturation(-1)
+
+            camera.framesize(camera.FRAME_QXGA)
             if weather_condition == 'sunny':
                 camera.whitebalance(camera.WB_SUNNY)
             elif weather_condition == 'overcast':
@@ -113,8 +116,11 @@ class TimeLapseCam:
         image_send_successful = None 
         in_test_mode = config is not None and config.get('testMode', False)
         weather_condition =  config is not None and config.get('weatherCondition', 'overcast')
-        
-        image_send_successful = self.take_photo(weather_condition=weather_condition, test_post=in_test_mode)   
+
+        scheduled_wakeup = wake_reason == 4
+        upload_test_image = in_test_mode or not scheduled_wakeup
+
+        image_send_successful = self.take_photo(weather_condition=weather_condition, test_post=upload_test_image)   
 
         ms_til_next_wakeup = 30 * 1000
         if in_test_mode:
