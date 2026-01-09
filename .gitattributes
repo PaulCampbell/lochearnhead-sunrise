@@ -1,6 +1,6 @@
 /3d-models/ export-ignore
 /tools/ export-ignore
 /environment.example.py export-ignore
-/micropython_v1.21.0_camera_no_ble.bin export-ignore
+/firmware.bin export-ignore
 /README.md export-ignore
 /requirements.txt export-ignore

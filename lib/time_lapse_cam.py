@@ -46,7 +46,7 @@ class TimeLapseCam:
             cam.set_agc_gain(True)
             cam.set_exposure_ctrl(True)
 
-            time.sleep(4)
+            time.sleep(5)
 
             print("whitebal", cam.whitebal)
             print("agc_gain", cam.gain_ctrl)
@@ -138,6 +138,7 @@ class TimeLapseCam:
             "running_in_test_mode": in_test_mode,
             "sleep_for": ms_til_next_wakeup,
         }
+        print('Reporting device status:', device_status)
         self.client.create_device_status(device_status)
 
         try:
