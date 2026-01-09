@@ -1,4 +1,3 @@
-
 import machine
 from lib.time_lapse_cam import TimeLapseCam
 from environment import (

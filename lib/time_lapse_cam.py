@@ -94,7 +94,8 @@ class TimeLapseCam:
         wakeup_time = time.time()
         wake_reason = machine.wake_reason()
         print("Wake reason:", wake_reason, "at time:", wakeup_time)
-        allow_captive_portal = (wake_reason != machine.DEEPSLEEP_RESET)
+        timer_based_wakeup = (wake_reason == 4)
+        allow_captive_portal = not timer_based_wakeup
         wlan = self.connect_wifi(enter_captive_portal_if_needed=allow_captive_portal)
         
         if wlan is None:
@@ -117,22 +118,12 @@ class TimeLapseCam:
         in_test_mode = config is not None and config.get('testMode', False)
         weather_condition =  config is not None and config.get('weatherCondition', 'overcast')
 
-        scheduled_wakeup = wake_reason == 4
-        upload_test_image = in_test_mode or not scheduled_wakeup
-
+        upload_test_image = in_test_mode or not timer_based_wakeup
         image_send_successful = self.take_photo(weather_condition=weather_condition, test_post=upload_test_image)   
 
         ms_til_next_wakeup = 30 * 1000
-        if in_test_mode:
-            ms_til_next_wakeup = 30 * 1000
-        else:
+        if not in_test_mode:
             ms_til_next_wakeup = self.get_wakeup_time(config)
-            
-        try:
-            print("Checking for firmware updates...")
-            self.client.check_and_update_firmware()
-        except Exception as e:
-            print("Firmware update check failed:", e)
 
         signal_strength = self.wifi_manager.get_signal_strength()
         device_status = {
@@ -142,7 +133,15 @@ class TimeLapseCam:
             "wake_reason": wake_reason,
             "running_in_test_mode": in_test_mode,
             "sleep_for": ms_til_next_wakeup,
+            "weather_condition": weather_condition,
         }
         self.client.create_device_status(device_status)
+
+        try:
+            print("Checking for firmware updates...")
+            self.client.check_and_update_firmware()
+        except Exception as e:
+            print("Firmware update check failed:", e)
+
         print("Entering deep sleep for: ", ms_til_next_wakeup)
         machine.deepsleep(ms_til_next_wakeup)
