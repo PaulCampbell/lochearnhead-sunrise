@@ -39,12 +39,12 @@ class TimeLapseCam:
             cam = Camera(pixel_format=PixelFormat.JPEG,
                 frame_size=FrameSize.UXGA,
                 jpeg_quality=90,
-            )
+                grab_mode=GrabMode.WHEN_EMPTY,
+                fb_count=1)
             print('Camera initialized')
             cam.set_awb_gain(True)
             cam.set_agc_gain(True)
-            cam.set_exposure_ctrl(False)
-            cam.set_aec_value(10)
+            cam.set_exposure_ctrl(True)
 
             time.sleep(4)
 
@@ -101,8 +101,6 @@ class TimeLapseCam:
         print("Wake reason:", wake_reason, "at time:", wakeup_time)
         timer_based_wakeup = (wake_reason == 4)
         allow_captive_portal = not timer_based_wakeup
-        self.take_photo(test_post=True)
-        return
         wlan = self.connect_wifi(enter_captive_portal_if_needed=allow_captive_portal)
         
         if wlan is None:
@@ -122,7 +120,7 @@ class TimeLapseCam:
             print("Fetch config failed:", e)
 
         image_send_successful = None 
-        in_test_mode = True #config is not None and config.get('testMode', False)
+        in_test_mode = config is not None and config.get('testMode', False)
 
         upload_test_image = in_test_mode or not timer_based_wakeup
         image_send_successful = self.take_photo(test_post=upload_test_image)   
@@ -142,11 +140,11 @@ class TimeLapseCam:
         }
         self.client.create_device_status(device_status)
 
-        # try:
-        #     print("Checking for firmware updates...")
-        #     self.client.check_and_update_firmware()
-        # except Exception as e:
-        #     print("Firmware update check failed:", e)
+        try:
+            print("Checking for firmware updates...")
+            self.client.check_and_update_firmware()
+        except Exception as e:
+            print("Firmware update check failed:", e)
 
         print("Entering deep sleep for: ", ms_til_next_wakeup)
         machine.deepsleep(ms_til_next_wakeup)
