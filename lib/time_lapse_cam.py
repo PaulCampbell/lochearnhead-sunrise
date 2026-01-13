@@ -2,7 +2,7 @@ from lib.iot_manager_client import IotManagerClient
 from lib.wifimgr import WifiManager
 import time
 import ntptime
-from camera import Camera, GrabMode, PixelFormat, FrameSize
+import camera
 import machine
 
 TEST_MODE = False
@@ -33,32 +33,27 @@ class TimeLapseCam:
         
         return wlan
         
-    def take_photo(self, test_post=False):
+    def take_photo(self, weather_condition, test_post=False):
         try:
             print("Taking photo...")
-            cam = Camera(pixel_format=PixelFormat.JPEG,
-                frame_size=FrameSize.UXGA,
-                jpeg_quality=90,
-                grab_mode=GrabMode.WHEN_EMPTY,
-                fb_count=1)
-            print('Camera initialized')
-            cam.set_awb_gain(True)
-            cam.set_agc_gain(True)
-            cam.set_exposure_ctrl(True)
+            camera.init(0, format=camera.JPEG, fb_location=camera.PSRAM)
+            time.sleep(1.2) 
 
-            time.sleep(5)
+            camera.contrast(1)
+            camera.saturation(-1)
 
-            print("whitebal", cam.whitebal)
-            print("agc_gain", cam.gain_ctrl)
-            print("exposure_ctrl", cam.exposure_ctrl)
-            print("awb_gain", cam.awb_gain)
-            print("agc_gain", cam.agc_gain)
-            print("aec_value", cam.aec_value)
+            camera.framesize(camera.FRAME_QXGA)
+            if weather_condition == 'sunny':
+                camera.whitebalance(camera.WB_SUNNY)
+            elif weather_condition == 'overcast':
+                camera.whitebalance(camera.WB_CLOUDY)
+            else:
+                camera.whitebalance(camera.WB_NONE)
+
+            frame = camera.capture()
             
-            img = bytes(cam.capture())
-            print("Photo taken, size:", len(img), "bytes")
             response = self.client.upload_image(
-                image_data=img,
+                image_data=frame,
                 test_post=test_post,
             )
             print("Image uploaded, response:", response)
@@ -67,7 +62,7 @@ class TimeLapseCam:
             print("create_content failed:", e)
             return e
         finally:
-            cam.free_buffer()
+            camera.deinit()
 
     def fetch_config(self):
         try:
@@ -121,9 +116,11 @@ class TimeLapseCam:
 
         image_send_successful = None 
         in_test_mode = config is not None and config.get('testMode', False)
+        weather_condition =  config is not None and config.get('weatherCondition', 'overcast')
+
 
         upload_test_image = in_test_mode or not timer_based_wakeup
-        image_send_successful = self.take_photo(test_post=upload_test_image)   
+        image_send_successful = self.take_photo(weather_condition=weather_condition, test_post=upload_test_image)   
 
         ms_til_next_wakeup = 30 * 1000
         if not in_test_mode:
@@ -137,6 +134,7 @@ class TimeLapseCam:
             "wake_reason": wake_reason,
             "running_in_test_mode": in_test_mode,
             "sleep_for": ms_til_next_wakeup,
+            "weather_condition": weather_condition,
         }
         print('Reporting device status:', device_status)
         self.client.create_device_status(device_status)
