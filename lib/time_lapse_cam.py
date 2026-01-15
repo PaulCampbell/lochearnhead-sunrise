@@ -38,11 +38,10 @@ class TimeLapseCam:
             print("Taking photo...")
             camera.init(0, format=camera.JPEG, fb_location=camera.PSRAM)
             time.sleep(1.2) 
-
             camera.contrast(1)
             camera.saturation(-1)
-
             camera.framesize(camera.FRAME_QXGA)
+
             if weather_condition == 'sunny':
                 camera.whitebalance(camera.WB_SUNNY)
             elif weather_condition == 'overcast':
@@ -51,7 +50,6 @@ class TimeLapseCam:
                 camera.whitebalance(camera.WB_NONE)
 
             frame = camera.capture()
-            
             response = self.client.upload_image(
                 image_data=frame,
                 test_post=test_post,
@@ -139,11 +137,12 @@ class TimeLapseCam:
         print('Reporting device status:', device_status)
         self.client.create_device_status(device_status)
 
-        try:
-            print("Checking for firmware updates...")
-            self.client.check_and_update_firmware()
-        except Exception as e:
-            print("Firmware update check failed:", e)
+        if not in_test_mode:
+            try:
+                print("Checking for firmware updates...")
+                self.client.check_and_update_firmware()
+            except Exception as e:
+                print("Firmware update check failed:", e)
 
         print("Entering deep sleep for: ", ms_til_next_wakeup)
         machine.deepsleep(ms_til_next_wakeup)
