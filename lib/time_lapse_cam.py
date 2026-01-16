@@ -20,9 +20,10 @@ class TimeLapseCam:
         print("Connecting to WiFi...")
         wlan = self.wifi_manager.get_connection(enter_captive_portal_if_needed=enter_captive_portal_if_needed)
         if wlan is None:
-            print("Could not initialize the network connection.")
-            while True:
-                pass
+            print("ERROR: Could not initialize the network connection.")
+            print("Entering deep sleep for 1 hour before retry...")
+            # Sleep for 1 hour then retry automatically
+            machine.deepsleep(60 * 60 * 1000)
 
         print("Network connected:", wlan.ifconfig())
         try:
@@ -34,33 +35,65 @@ class TimeLapseCam:
         return wlan
         
     def take_photo(self, weather_condition, test_post=False):
+        """Capture and upload a photo.
+        
+        Args:
+            weather_condition: 'sunny', 'overcast', or other
+            test_post: If True, marks upload as test post
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
         try:
             print("Taking photo...")
             camera.init(0, format=camera.JPEG, fb_location=camera.PSRAM)
-            time.sleep(1.2) 
+            time.sleep(1.2)  # Wait for camera to stabilize
+            
+            # Apply camera settings
             camera.contrast(1)
             camera.saturation(-1)
             camera.framesize(camera.FRAME_QXGA)
-
+            
+            # Set white balance based on weather
             if weather_condition == 'sunny':
                 camera.whitebalance(camera.WB_SUNNY)
-            elif weather_condition == 'overcast':
+            elif weather_condition == 'cloudy' or weather_condition == 'overcast':
                 camera.whitebalance(camera.WB_CLOUDY)
             else:
                 camera.whitebalance(camera.WB_NONE)
-
+            
+            # Capture frame
             frame = camera.capture()
-            response = self.client.upload_image(
-                image_data=frame,
-                test_post=test_post,
-            )
-            print("Image uploaded, response:", response)
-            return True
+            if frame is None or len(frame) == 0:
+                print("ERROR: Camera capture returned empty frame")
+                return False
+            
+            print(f"Captured frame: {len(frame)} bytes")
+            
+            # Upload
+            try:
+                response = self.client.upload_image(
+                    image_data=frame,
+                    test_post=test_post,
+                )
+                print("Image uploaded successfully")
+                return True
+            except Exception as e:
+                print(f"ERROR: Image upload failed: {e}")
+                import traceback
+                traceback.print_exc()
+                return False
+                
         except Exception as e:
-            print("create_content failed:", e)
-            return e
+            print(f"ERROR: Photo capture failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
         finally:
-            camera.deinit()
+            try:
+                camera.deinit()
+            except Exception as e:
+                print(f"WARNING: Camera deinit failed: {e}")
 
     def fetch_config(self):
         try:
@@ -72,19 +105,57 @@ class TimeLapseCam:
             return None
 
     def get_wakeup_time(self, config):
-        # Get tomorrow's wakeup time from IoT Manager
-        # Default to 24 hours later
-        wakeup_time_ms = (946684800 + time.time()) * 1000 + (24 * 60 * 60 * 1000)
+        """Calculate milliseconds until next scheduled wakeup.
+        
+        Args:
+            config: Configuration dict from server (may be None)
+        
+        Returns:
+            int: Milliseconds to sleep (validated to reasonable range)
+        """
+        # Constants
+        DEFAULT_WAKEUP_INTERVAL_MS = 24 * 60 * 60 * 1000  # 24 hours
+        MIN_WAKEUP_INTERVAL_MS = 1 * 60 * 1000             # 1 minute
+        MAX_WAKEUP_INTERVAL_MS = 48 * 60 * 60 * 1000      # 48 hours
+        
+        # ESP32 epoch offset: Jan 1, 2000 = 946684800 seconds from Unix epoch
+        ESP32_EPOCH_OFFSET = 946684800
+        
+        wakeup_time_ms = None
+        
+        # Try to get wakeup time from config with null safety
         try:
-            wakeup_time_ms = config.get('nextWakeupTimeMs')
-            print("Next wakeup time from server:", wakeup_time_ms)
+            if config and isinstance(config, dict):
+                wakeup_time_ms = config.get('nextWakeupTimeMs')
+                if wakeup_time_ms:
+                    print("Next wakeup time from server:", wakeup_time_ms)
         except Exception as e:
-            print("get_next_wakeup_time failed:", e)
-
-        current_unix_timestamp = (946684800 + time.time()) * 1000
-        print("wakeup_time_ms", wakeup_time_ms)
-        print("current_unix_timestamp", current_unix_timestamp)
-        ms_til_next_wakeup = wakeup_time_ms - current_unix_timestamp
+            print("Error reading wakeup time from config:", e)
+        
+        # If no valid wakeup time from server, use default
+        if wakeup_time_ms is None:
+            print("Using default wakeup interval:", DEFAULT_WAKEUP_INTERVAL_MS, "ms")
+            return DEFAULT_WAKEUP_INTERVAL_MS
+        
+        # Calculate how long until that time
+        # ESP32 time.time() returns seconds since Jan 1, 2000
+        # Convert to Unix timestamp (ms since Jan 1, 1970) for comparison with server
+        current_unix_timestamp_ms = (ESP32_EPOCH_OFFSET + time.time()) * 1000
+        ms_til_next_wakeup = wakeup_time_ms - current_unix_timestamp_ms
+        
+        print("Current timestamp (Unix ms):", current_unix_timestamp_ms)
+        print("Wakeup time (Unix ms):", wakeup_time_ms)
+        print("Time until wakeup:", ms_til_next_wakeup, "ms")
+        
+        # Validate sleep time is in reasonable range
+        if ms_til_next_wakeup < MIN_WAKEUP_INTERVAL_MS:
+            print(f"Warning: Wakeup time in past or too soon. Using minimum: {MIN_WAKEUP_INTERVAL_MS}ms")
+            return MIN_WAKEUP_INTERVAL_MS
+        
+        if ms_til_next_wakeup > MAX_WAKEUP_INTERVAL_MS:
+            print(f"Warning: Wakeup time too far away. Capping to maximum: {MAX_WAKEUP_INTERVAL_MS}ms")
+            return MAX_WAKEUP_INTERVAL_MS
+        
         return ms_til_next_wakeup
 
     def main(self):
@@ -112,9 +183,23 @@ class TimeLapseCam:
         except Exception as e:
             print("Fetch config failed:", e)
 
-        image_send_successful = None 
-        in_test_mode = config is not None and config.get('testMode', False)
-        weather_condition =  config is not None and config.get('weatherCondition', 'overcast')
+        # Set defaults
+        in_test_mode = False
+        weather_condition = 'overcast'
+        
+        # Override with server config if available
+        try:
+            if config and isinstance(config, dict):
+                in_test_mode = config.get('testMode', False)
+                server_weather = config.get('weatherCondition', 'overcast')
+                if server_weather in ('sunny', 'overcast', 'cloudy'):
+                    weather_condition = server_weather
+                else:
+                    print(f"Warning: Unknown weather condition '{server_weather}', using 'overcast'")
+        except Exception as e:
+            print(f"Warning: Failed to read config: {e}")
+        
+        image_send_successful = None
 
 
         upload_test_image = in_test_mode or not timer_based_wakeup

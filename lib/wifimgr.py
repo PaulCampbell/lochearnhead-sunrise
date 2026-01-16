@@ -166,13 +166,23 @@ class WifiManager:
 
 
 def read_profiles():
-    with open(NETWORK_PROFILES) as f:
-        lines = f.readlines()
-    profiles = {}
-    for line in lines:
-        ssid, password = line.strip("\n").split(";")
-        profiles[ssid] = password
-    return profiles
+    """Read WiFi profiles from storage. Returns empty dict if file doesn't exist."""
+    try:
+        with open(NETWORK_PROFILES) as f:
+            lines = f.readlines()
+        profiles = {}
+        for line in lines:
+            if line.strip():  # Skip empty lines
+                try:
+                    ssid, password = line.strip("\n").split(";", 1)  # Use split with max=1
+                    profiles[ssid] = password
+                except ValueError:
+                    print(f"Warning: Skipping malformed wifi.dat line: {line}")
+        return profiles
+    except OSError:
+        # File doesn't exist yet (first boot) - return empty profiles
+        print("Note: wifi.dat not found. Device will scan for networks.")
+        return {}
 
 
 
