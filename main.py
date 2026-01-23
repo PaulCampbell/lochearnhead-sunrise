@@ -1,6 +1,7 @@
 import machine
 from lib.program import Program
 from lib.logger import init_logger
+from lib.device_state import init_device_state
 from lib.config import LOG_CONFIG, TEST_MODE
 from environment import (
     IOT_MANAGER_BASE_URL,
@@ -12,6 +13,7 @@ from environment import (
 def main():
     # Initialize infrastructure
     logger = init_logger(level=LOG_CONFIG.get('level', 'INFO'))
+    state = init_device_state()
     
     logger.info("=" * 60)
     logger.info("DEVICE STARTUP")
@@ -29,6 +31,7 @@ def main():
         program.main()
     except Exception as e:
         logger.error(f"Unhandled exception in main: {e}")
+        state.record_error(str(e), 'main_exception')
         import traceback
         traceback.print_exc()
         # probably a WiFi issue; restart

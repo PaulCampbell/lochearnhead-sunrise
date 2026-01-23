@@ -73,7 +73,6 @@ WAKEUP_CONFIG = {
 
 SLEEP_CONFIG = {
     'wifi_failure_sleep_ms': 60 * 60 * 1000,    # Sleep 1 hour if WiFi fails
-    'firmware_update_retry_sleep_ms': 10 * 60 * 1000,  # Sleep 10 min between update checks
 }
 
 # ============================================================================

@@ -10,6 +10,7 @@ from lib.config import (
     DEFAULT_WEATHER_CONDITION,
 )
 from lib.logger import get_logger
+from lib.device_state import get_device_state
 from lib.validation import (
     validate_url,
     validate_device_id,
@@ -37,6 +38,7 @@ class Program:
             ValidationError: If any parameter is invalid
         """
         self.logger = get_logger()
+        self.state = get_device_state()
         
         # Validate all parameters
         try:
@@ -58,6 +60,7 @@ class Program:
         )
         
         self.logger.info(f"Program initialized with device ID: {self.device_id}")
+        self.state.record_boot()
 
     def connect_wifi(self, enter_captive_portal_if_needed):
         """Connect to WiFi with graceful failure handling."""
@@ -66,6 +69,7 @@ class Program:
         if wlan is None:
             self.logger.error("Could not initialize network connection")
             self.logger.info(f"Entering deep sleep for {SLEEP_CONFIG['wifi_failure_sleep_ms'] / 1000 / 60:.0f} minutes")
+            self.state.record_wifi_failure()
             # Sleep then retry automatically
             machine.deepsleep(SLEEP_CONFIG['wifi_failure_sleep_ms'])
 
@@ -76,6 +80,7 @@ class Program:
         except Exception as e:
             self.logger.warn(f"Failed to synchronize time: {e}")
         
+        self.state.record_wifi_success()
         return wlan
         
     def take_photo(self, weather_condition, test_post=False):
@@ -119,9 +124,11 @@ class Program:
             frame = camera.capture()
             if frame is None or len(frame) == 0:
                 self.logger.error("Camera capture returned empty frame")
+                self.state.record_camera_failure()
                 return False
             
             self.logger.info(f"Captured frame: {len(frame)} bytes")
+            self.state.record_camera_success(len(frame))
             
             # Upload
             try:
@@ -130,15 +137,18 @@ class Program:
                     test_post=test_post,
                 )
                 self.logger.info("Image uploaded successfully")
+                self.state.record_upload_attempt(True)
                 return True
             except Exception as e:
                 self.logger.error(f"Image upload failed: {e}")
+                self.state.record_upload_attempt(False, str(e))
                 import traceback
                 traceback.print_exc()
                 return False
                 
         except Exception as e:
             self.logger.error(f"Photo capture failed: {e}")
+            self.state.record_camera_failure()
             import traceback
             traceback.print_exc()
             return False
@@ -164,6 +174,7 @@ class Program:
                 
         except Exception as e:
             self.logger.error(f"Fetch config failed: {e}")
+            self.state.record_error(str(e), 'config_fetch')
             return None
 
     def get_wakeup_time(self, config):
@@ -282,7 +293,8 @@ class Program:
             "wake_reason": wake_reason,
             "running_in_test_mode": in_test_mode,
             "sleep_for": ms_til_next_wakeup,
-            "weather_condition": weather_condition
+            "weather_condition": weather_condition,
+            "device_state": self.state.get_status(),
         }
         self.logger.info(f'Reporting device status: {device_status}')
         self.client.create_device_status(device_status)

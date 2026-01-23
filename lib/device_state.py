@@ -62,8 +62,6 @@ class DeviceState:
             with open(self.state_file, 'r') as f:
                 data = json.load(f)
                 return data if isinstance(data, dict) else {}
-        except FileNotFoundError:
-            return {}
         except Exception as e:
             print(f"WARNING: Failed to load device state: {e}")
             return {}
