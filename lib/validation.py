@@ -36,7 +36,7 @@ def validate_url(url):
         ValidationError: If URL is invalid
     """
     if not isinstance(url, str):
-        raise ValidationError(f"URL must be string, got {type(url)}")
+        raise ValidationError("URL must be string, got {}".format(type(url)))
     
     if not url.strip():
         raise ValidationError("URL cannot be empty")
@@ -69,7 +69,7 @@ def validate_device_id(device_id):
         ValidationError: If device ID is invalid
     """
     if not isinstance(device_id, str):
-        raise ValidationError(f"Device ID must be string, got {type(device_id)}")
+        raise ValidationError("Device ID must be string, got {}".format(type(device_id)))
     
     if not device_id.strip():
         raise ValidationError("Device ID cannot be empty")
@@ -78,7 +78,7 @@ def validate_device_id(device_id):
     
     # Allow alphanumeric, dash, underscore
     if not re.match(r'^[a-zA-Z0-9_-]+$', device_id):
-        raise ValidationError(f"Device ID contains invalid characters: {device_id}")
+        raise ValidationError("Device ID contains invalid characters: {}".format(device_id))
     
     if len(device_id) > 64:
         raise ValidationError("Device ID is too long (max 64 characters)")
@@ -104,7 +104,7 @@ def validate_password(password):
         ValidationError: If password is invalid
     """
     if not isinstance(password, str):
-        raise ValidationError(f"Password must be string, got {type(password)}")
+        raise ValidationError("Password must be string, got {}".format(type(password)))
     
     # Password can be empty (for open networks)
     password = password.strip()
@@ -122,26 +122,26 @@ def validate_password(password):
 def validate_weather_condition(condition):
     """
     Validate a weather condition.
-    
     Args:
         condition (str): Weather condition to validate
-    
     Returns:
         str: The validated condition (lowercased)
-    
     Raises:
         ValidationError: If condition is invalid
     """
     if not isinstance(condition, str):
-        raise ValidationError(f"Weather condition must be string, got {type(condition)}")
+        raise ValidationError(
+            "Weather condition must be string, got {}".format(type(condition))
+        )
     
     condition = condition.strip().lower()
     
     if condition not in VALID_WEATHER_CONDITIONS:
         valid_str = ', '.join(VALID_WEATHER_CONDITIONS)
         raise ValidationError(
-            f"Weather condition '{condition}' is invalid. "
-            f"Must be one of: {valid_str}"
+            "Weather condition '{}' is invalid. Must be one of: {}".format(
+                condition, valid_str
+            )
         )
     
     return condition
@@ -177,15 +177,16 @@ def validate_framesize(framesize):
     ]
     
     if not isinstance(framesize, str):
-        raise ValidationError(f"Framesize must be string, got {type(framesize)}")
+        raise ValidationError("Framesize must be string, got {}".format(type(framesize)))
     
     framesize = framesize.strip().upper()
     
     if framesize not in valid_sizes:
         valid_str = ', '.join(valid_sizes)
         raise ValidationError(
-            f"Framesize '{framesize}' is invalid. "
-            f"Must be one of: {valid_str}"
+            "Framesize '{}' is invalid. Must be one of: {}".format(
+                framesize, valid_str
+            )
         )
     
     return framesize
@@ -205,10 +206,10 @@ def validate_contrast(contrast):
         ValidationError: If contrast is invalid
     """
     if not isinstance(contrast, int):
-        raise ValidationError(f"Contrast must be integer, got {type(contrast)}")
+        raise ValidationError("Contrast must be integer, got {}".format(type(contrast)))
     
     if contrast < -2 or contrast > 2:
-        raise ValidationError(f"Contrast must be between -2 and 2, got {contrast}")
+        raise ValidationError("Contrast must be between -2 and 2, got {}".format(contrast))
     
     return contrast
 
@@ -227,10 +228,10 @@ def validate_saturation(saturation):
         ValidationError: If saturation is invalid
     """
     if not isinstance(saturation, int):
-        raise ValidationError(f"Saturation must be integer, got {type(saturation)}")
+        raise ValidationError("Saturation must be integer, got {}".format(type(saturation)))
     
     if saturation < -2 or saturation > 2:
-        raise ValidationError(f"Saturation must be between -2 and 2, got {saturation}")
+        raise ValidationError("Saturation must be between -2 and 2, got {}".format(saturation))
     
     return saturation
 
@@ -254,7 +255,7 @@ def validate_wakeup_time_ms(wakeup_time_ms):
     """
     if not isinstance(wakeup_time_ms, int):
         raise ValidationError(
-            f"Wakeup time must be integer, got {type(wakeup_time_ms)}"
+            "Wakeup time must be integer, got {}".format(type(wakeup_time_ms))
         )
     
     min_ms = WAKEUP_CONFIG['min_interval_ms']
@@ -262,14 +263,16 @@ def validate_wakeup_time_ms(wakeup_time_ms):
     
     if wakeup_time_ms < min_ms:
         raise ValidationError(
-            f"Wakeup time {wakeup_time_ms}ms is too short "
-            f"(minimum: {min_ms}ms = 1 minute)"
+            "Wakeup time {}ms is too short (minimum: {}ms = 1 minute)".format(
+                wakeup_time_ms, min_ms
+            )
         )
     
     if wakeup_time_ms > max_ms:
         raise ValidationError(
-            f"Wakeup time {wakeup_time_ms}ms is too long "
-            f"(maximum: {max_ms}ms = 48 hours)"
+            "Wakeup time {}ms is too long (maximum: {}ms = 48 hours)".format(
+                wakeup_time_ms, max_ms
+            )
         )
     
     return wakeup_time_ms
@@ -293,7 +296,7 @@ def validate_server_config(config):
         ValidationError: If config is invalid
     """
     if not isinstance(config, dict):
-        raise ValidationError(f"Config must be dict, got {type(config)}")
+        raise ValidationError("Config must be dict, got {}".format(type(config)))
     
     validated = {}
     
@@ -301,7 +304,7 @@ def validate_server_config(config):
     if 'testMode' in config:
         test_mode = config['testMode']
         if not isinstance(test_mode, bool):
-            raise ValidationError(f"testMode must be boolean, got {type(test_mode)}")
+            raise ValidationError("testMode must be boolean, got {}".format(type(test_mode)))
         validated['testMode'] = test_mode
     
     # Validate weatherCondition (optional string)
@@ -311,17 +314,19 @@ def validate_server_config(config):
                 config['weatherCondition']
             )
         except ValidationError as e:
-            raise ValidationError(f"Invalid weatherCondition: {e}")
+            raise ValidationError("Invalid weatherCondition: {}".format(e))
     
     # Validate nextWakeupTimeMs (optional integer)
     if 'nextWakeupTimeMs' in config:
         wakeup_ms = config['nextWakeupTimeMs']
         if not isinstance(wakeup_ms, int):
             raise ValidationError(
-                f"nextWakeupTimeMs must be integer, got {type(wakeup_ms)}"
+                "nextWakeupTimeMs must be integer, got {}".format(type(wakeup_ms))
             )
         if wakeup_ms <= 0:
-            raise ValidationError(f"nextWakeupTimeMs must be positive, got {wakeup_ms}")
+            raise ValidationError(
+                "nextWakeupTimeMs must be positive, got {}".format(wakeup_ms)
+            )
         validated['nextWakeupTimeMs'] = wakeup_ms
     
     # Preserve any other unknown fields for forward compatibility
